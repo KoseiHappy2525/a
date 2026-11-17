@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="claude:viewport-fit-sides" content="cover">
+  <title>かんさつパーツ工房</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=IBM+Plex+Mono:wght@500&display=swap">
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>かんさつパーツ工房<small>GRID 42mm</small></h1>
+      <p>じぶんの よそうを ためす へやを つくって、3Dプリンターで だそう。</p>
+    </header>
+
+    <div class="main">
+      <aside class="side">
+        <section class="panel" aria-labelledby="l-step">
+          <div class="label" id="l-step">つくりかた</div>
+          <div class="steps">
+            <button id="m-shape" data-mode="shape" aria-pressed="false"><b>1</b>かたち</button>
+            <button id="m-inside" data-mode="inside" aria-pressed="true"><b>2</b>なかみ</button>
+            <button id="m-doors" data-mode="doors" aria-pressed="false"><b>3</b>とびら</button>
+          </div>
+          <!-- 道具ボタンは app.ts が registry から作る -->
+          <div class="tools" id="tools"></div>
+          <div class="presets" id="presets">
+            <button id="p-maze">めいろ</button>
+            <button id="p-next">べつのめいろ <span class="num" id="seed">7</span></button>
+            <button id="p-rooms">へやわけ</button>
+            <button id="p-rocks">いわを ちらす</button>
+            <button id="p-clear">からっぽ</button>
+            <button id="p-sample">みほん</button>
+          </div>
+          <label class="row" for="stepH"><span>だんの たかさ</span><input id="stepH" type="range" min="2" max="10" step="1" value="5"><span class="num" id="stepHv">5mm</span></label>
+        </section>
+
+        <section class="panel" aria-labelledby="l-look">
+          <div class="label" id="l-look">みため</div>
+          <div class="swatches" role="group" aria-label="フィラメントの いろ">
+            <button id="c1" data-color="#e9893a" style="background:#e9893a" aria-label="オレンジ" aria-pressed="true"></button>
+            <button id="c2" data-color="#3d9fc2" style="background:#3d9fc2" aria-label="みずいろ" aria-pressed="false"></button>
+            <button id="c3" data-color="#5ba65a" style="background:#5ba65a" aria-label="みどり" aria-pressed="false"></button>
+            <button id="c4" data-color="#efc345" style="background:#efc345" aria-label="きいろ" aria-pressed="false"></button>
+            <button id="c5" data-color="#e6e2d8" style="background:#e6e2d8" aria-label="しろ" aria-pressed="false"></button>
+            <button id="c6" data-color="#3b3c3a" style="background:#3b3c3a" aria-label="くろ" aria-pressed="false"></button>
+          </div>
+          <div class="checks">
+            <label for="showGates"><input id="showGates" type="checkbox" checked> ゲートを さしてみる</label>
+            <label for="showLid"><input id="showLid" type="checkbox"> フタ（プラばん）を のせる</label>
+            <label for="shade"><input id="shade" type="checkbox"> かげいた も つくる</label>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="l-info">
+          <div class="label" id="l-info">このパーツ</div>
+          <dl class="info">
+            <dt>おおきさ (mm)</dt><dd id="i-size">83.5 × 83.5 × 21.5</dd>
+            <dt>つかう マス</dt><dd id="i-cells">4マス</dd>
+            <dt>あいている とびら</dt><dd id="i-doors">6こ</dd>
+            <dt>いる ゲート</dt><dd id="i-gates">6まい</dd>
+            <dt>なかの たかさ</dt><dd>12.8 mm</dd>
+            <dt>おもさ（PLA）</dt><dd id="i-weight">…</dd>
+          </dl>
+          <div class="make">
+            <label class="label" for="name">なまえ</label>
+            <input id="name" type="text" maxlength="40" value="わたしのへや">
+            <button id="export">データを つくる</button>
+            <label class="filebtn" for="open">つづきを ひらく（_design.json）<input id="open" type="file" accept=".json,application/json"></label>
+          </div>
+        </section>
+      </aside>
+
+      <section class="board" aria-label="うえから みた ず">
+        <div class="cap"><span>うえから みた ず（ベースプレート 4×4）</span><span class="num">1マス 42mm ／ 1タイル 10.5mm</span></div>
+        <canvas id="editor" aria-label="パーツの へんしゅう エリア"></canvas>
+        <p id="hint"></p>
+        <p id="warn" hidden></p>
+      </section>
+
+      <section class="v3" aria-label="3D プレビュー">
+        <div class="cap"><span>3Dで みる</span><span>ドラッグで まわす・ピンチで ズーム</span></div>
+        <div id="view3d"><div id="loading">じゅんびちゅう…</div></div>
+      </section>
+    </div>
+
+    <details class="spec">
+      <summary>おとなの かたへ：きかくと しくみ</summary>
+      <ul>
+        <li>Gridfinity 互換（ピッチ42mm、ビン外寸 42n−0.5mm、脚プロファイル 0.8／1.8／2.15mm）。底は穴なしのソリッド。</li>
+        <li>高さ21.5mm、壁厚6mm、床面6.5mm、フタ受け段 19.3mm（深さ2.2mm）。内部の有効高さは約12.8mm。</li>
+        <li>扉は外周に面した各マスの辺の中央に1つ（幅12×高さ10mm）。どう並べても隣のパーツと扉が向かい合います。</li>
+        <li>ゲート溝 2.6×16.4mm。ゲート板 15.4×21×2mm を上から差し込み、フタをしたまま抜き差しできます。</li>
+        <li>中身はタイル10.5mm格子（各マスの中心とマス境界に乗る格子）。仕切り厚1.2mm・高さ19.1mm（フタとの隙間0.2mm）。</li>
+        <li>みずばは深さ3mmのくぼみ。脚の継ぎ目（しま模様のタイル）は底が抜けるため掘れません。</li>
+        <li>トンネルは1タイル幅の屋根つき通路。屋根の下角を面取り（下広がりの台形）にしてブリッジ印刷のスパンを抑えています。</li>
+        <li>まどは外周の辺（扉と同じ位置、扉とは排他）にあける穴＋透明板の溝。透明板はプラ板を型紙どおり切って上から差します。</li>
+        <li>書き出しはzip：ビンSTL、ゲートSTL（必要枚数）、フタ型紙SVG（原寸）、まど透明板の型紙SVG（まどがあるとき）、設計データJSON。</li>
+      </ul>
+    </details>
+  </div>
+  <div id="toast" hidden></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

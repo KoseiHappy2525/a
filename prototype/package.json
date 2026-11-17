@@ -1,0 +1,17 @@
+{
+  "name": "kansatsu-parts-kobo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node tests/engine.test.mjs"
+  },
+  "dependencies": {
+    "manifold-3d": "3.3.2",
+    "three": "0.169.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

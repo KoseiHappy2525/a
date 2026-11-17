@@ -1,0 +1,205 @@
+<title>かんさつパーツ工房</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* 作業台レイアウト：左に手順と道具、中央にカッティングマット上の上面図、右に3D。マスは42mm・タイルは10.5mm */
+:root {
+  --bg: #eef1ea;
+  --panel: #fbfcf9;
+  --ink: #1d2721;
+  --muted: #56645b;
+  --line: #d5dbd1;
+  --mat: #2e5a49;
+  --mat-ink: #e8f1ea;
+  --slot: #3a6a58;
+  --floor: #f6f2e8;
+  --grid: rgba(60, 50, 30, .10);
+  --part: #3a3833;
+  --rock: #8c867a;
+  --step: #cfb889;
+  --pond: #4fa3d6;
+  --gate: #d6473a;
+  --seam: rgba(214, 71, 58, .18);
+  --accent: #f3c233;
+  --plate: #b9c0b6;
+  --btn: #ffffff;
+  --btn-on: #1d2721;
+  --btn-on-ink: #fbfcf9;
+  --f-ui: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141b17; --panel: #1b241f; --ink: #e7eee8; --muted: #9db0a4; --line: #2c3a32;
+    --mat: #1f3d32; --mat-ink: #cfe3d6; --slot: #29503f; --floor: #efe9db; --grid: rgba(60, 50, 30, .12);
+    --plate: #5b6660; --btn: #222d27; --btn-on: #e7eee8; --btn-on-ink: #141b17; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141b17; --panel: #1b241f; --ink: #e7eee8; --muted: #9db0a4; --line: #2c3a32;
+  --mat: #1f3d32; --mat-ink: #cfe3d6; --slot: #29503f; --floor: #efe9db; --grid: rgba(60, 50, 30, .12);
+  --plate: #5b6660; --btn: #222d27; --btn-on: #e7eee8; --btn-on-ink: #141b17; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-weight: 500; font-size: 15px; line-height: 1.6; }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 18px 40px; max-width: 1480px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; }
+h1 { font-size: 26px; font-weight: 800; margin: 0; letter-spacing: .02em; text-wrap: balance; }
+h1 small { font-family: var(--f-num); font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: .08em; margin-left: 8px; }
+header p { margin: 0; color: var(--muted); font-size: 14px; }
+.main { display: grid; gap: 16px; grid-template-columns: 310px minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+@media (max-width: 1200px) { .main { grid-template-columns: 310px minmax(0, 1fr); } .v3 { grid-column: 2; } }
+@media (max-width: 760px) { .main { grid-template-columns: minmax(0, 1fr); } .v3 { grid-column: auto; order: 3; } .board { order: 1; } .side { order: 2; } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 12px; min-width: 0; }
+.side { display: grid; gap: 12px; min-width: 0; }
+.label { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .08em; }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.steps button { display: grid; justify-items: center; gap: 0; padding: 8px 4px 7px; font-size: 15px; }
+.steps b { font-family: var(--f-num); font-size: 11px; font-weight: 500; opacity: .7; }
+button, .filebtn { font: inherit; font-weight: 700; color: var(--ink); background: var(--btn); border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 10px; cursor: pointer; touch-action: manipulation; }
+button:hover, .filebtn:hover { border-color: var(--ink); }
+button:focus-visible, input:focus-visible, .filebtn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--btn-on); color: var(--btn-on-ink); border-color: var(--btn-on); }
+.tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.tools button { display: grid; justify-items: center; gap: 2px; padding: 8px 4px; font-size: 13px; }
+.tools svg { width: 30px; height: 30px; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.presets button { font-size: 13px; padding: 6px 10px; }
+.num { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+input[type=range] { flex: 1; min-width: 120px; accent-color: var(--gate); }
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatches button { width: 34px; height: 34px; border-radius: 50%; padding: 0; border: 2px solid var(--line); }
+.swatches button[aria-pressed="true"] { outline: 3px solid var(--accent); outline-offset: 2px; border-color: var(--panel); }
+.checks { display: grid; gap: 6px; }
+.checks label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.checks input { width: 18px; height: 18px; accent-color: var(--gate); }
+dl.info { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 14px; }
+dl.info dt { color: var(--muted); }
+dl.info dd { margin: 0; white-space: nowrap; font-family: var(--f-num); font-variant-numeric: tabular-nums; text-align: right; }
+.make { display: grid; gap: 8px; }
+.make input[type=text] { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--btn); color: var(--ink); width: 100%; }
+#export { background: var(--gate); color: #fff; border-color: var(--gate); font-size: 17px; padding: 12px; }
+#export:hover { filter: brightness(1.06); }
+.filebtn { display: block; text-align: center; font-size: 13px; }
+.filebtn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.board { background: var(--mat); border-radius: 16px; padding: 12px; display: grid; gap: 10px; min-width: 0; position: relative; }
+.board .cap { color: var(--mat-ink); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.board .cap .num { opacity: .75; font-size: 12px; }
+#editor { width: 100%; aspect-ratio: 1; max-width: 100%; display: block; touch-action: none; border-radius: 8px; cursor: crosshair; }
+#hint { color: var(--mat-ink); margin: 0; font-size: 14px; min-height: 3.2em; }
+#warn { background: var(--accent); color: #1d2721; border-radius: 8px; padding: 6px 10px; font-size: 13px; margin: 0; }
+.v3 { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+.v3 .cap { padding: 10px 14px; display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 13px; flex-wrap: wrap; }
+#view3d { position: relative; width: 100%; aspect-ratio: 1; max-width: 100%; touch-action: none; }
+#view3d canvas { width: 100% !important; height: 100% !important; display: block; }
+#loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; }
+#toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--btn-on); color: var(--btn-on-ink); padding: 10px 16px; border-radius: 999px; font-size: 14px; z-index: 20; max-width: calc(100% - 32px); text-align: center; }
+details.spec { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; font-size: 14px; }
+details.spec summary { cursor: pointer; font-weight: 700; }
+details.spec ul { margin: 8px 0 0; padding-left: 1.2em; color: var(--muted); display: grid; gap: 2px; max-width: 80ch; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>かんさつパーツ工房<small>GRID 42mm</small></h1>
+    <p>じぶんの よそうを ためす へやを つくって、3Dプリンターで だそう。</p>
+  </header>
+
+  <div class="main">
+    <aside class="side">
+      <section class="panel" aria-labelledby="l-step">
+        <div class="label" id="l-step">つくりかた</div>
+        <div class="steps">
+          <button id="m-shape" data-mode="shape" aria-pressed="false"><b>1</b>かたち</button>
+          <button id="m-inside" data-mode="inside" aria-pressed="true"><b>2</b>なかみ</button>
+          <button id="m-doors" data-mode="doors" aria-pressed="false"><b>3</b>とびら</button>
+        </div>
+        <div class="tools" id="tools">
+          <button id="t-wall" data-tool="wall" aria-pressed="true"><svg viewBox="0 0 30 30"><rect x="4" y="4" width="22" height="22" rx="3" fill="var(--floor)" stroke="var(--line)"/><rect x="14" y="5" width="2.4" height="20" fill="var(--part)"/></svg>かべ</button>
+          <button id="t-rock" data-tool="rock" aria-pressed="false"><svg viewBox="0 0 30 30"><rect x="6" y="6" width="18" height="18" rx="5" fill="var(--rock)"/></svg>いわ</button>
+          <button id="t-step" data-tool="step" aria-pressed="false"><svg viewBox="0 0 30 30"><rect x="5" y="8" width="20" height="16" fill="var(--step)"/><path d="M5 8h20" stroke="var(--part)" stroke-width="2"/></svg>だん</button>
+          <button id="t-ramp" data-tool="ramp" aria-pressed="false"><svg viewBox="0 0 30 30"><path d="M4 24 L26 24 L26 9 Z" fill="var(--step)"/><path d="M8 20 L20 12" stroke="var(--part)" stroke-width="2"/><path d="M21 9 l1.5 5 -5 -1z" fill="var(--part)"/></svg>さか</button>
+          <button id="t-pond" data-tool="pond" aria-pressed="false"><svg viewBox="0 0 30 30"><rect x="5" y="7" width="20" height="16" rx="3" fill="var(--pond)"/><circle cx="11" cy="13" r="1.6" fill="#fff" opacity=".7"/><circle cx="18" cy="17" r="1.6" fill="#fff" opacity=".7"/><circle cx="19" cy="11" r="1.2" fill="#fff" opacity=".7"/></svg>みずば</button>
+          <button id="t-erase" data-tool="erase" aria-pressed="false"><svg viewBox="0 0 30 30"><rect x="7" y="9" width="16" height="12" rx="2" transform="rotate(-30 15 15)" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.6"/><path d="M9 12 L13 19" stroke="var(--gate)" stroke-width="3"/></svg>けしゴム</button>
+        </div>
+        <div class="presets" id="presets">
+          <button id="p-maze">めいろ</button>
+          <button id="p-next">べつのめいろ <span class="num" id="seed">7</span></button>
+          <button id="p-rooms">へやわけ</button>
+          <button id="p-rocks">いわを ちらす</button>
+          <button id="p-clear">からっぽ</button>
+          <button id="p-sample">みほん</button>
+        </div>
+        <label class="row" for="stepH"><span>だんの たかさ</span><input id="stepH" type="range" min="2" max="10" step="1" value="5"><span class="num" id="stepHv">5mm</span></label>
+      </section>
+
+      <section class="panel" aria-labelledby="l-look">
+        <div class="label" id="l-look">みため</div>
+        <div class="swatches" role="group" aria-label="フィラメントの いろ">
+          <button id="c1" data-color="#e9893a" style="background:#e9893a" aria-label="オレンジ" aria-pressed="true"></button>
+          <button id="c2" data-color="#3d9fc2" style="background:#3d9fc2" aria-label="みずいろ" aria-pressed="false"></button>
+          <button id="c3" data-color="#5ba65a" style="background:#5ba65a" aria-label="みどり" aria-pressed="false"></button>
+          <button id="c4" data-color="#efc345" style="background:#efc345" aria-label="きいろ" aria-pressed="false"></button>
+          <button id="c5" data-color="#e6e2d8" style="background:#e6e2d8" aria-label="しろ" aria-pressed="false"></button>
+          <button id="c6" data-color="#3b3c3a" style="background:#3b3c3a" aria-label="くろ" aria-pressed="false"></button>
+        </div>
+        <div class="checks">
+          <label for="showGates"><input id="showGates" type="checkbox" checked> ゲートを さしてみる</label>
+          <label for="showLid"><input id="showLid" type="checkbox"> フタ（プラばん）を のせる</label>
+          <label for="shade"><input id="shade" type="checkbox"> かげいた も つくる</label>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="l-info">
+        <div class="label" id="l-info">このパーツ</div>
+        <dl class="info">
+          <dt>おおきさ (mm)</dt><dd id="i-size">83.5 × 83.5 × 21.5</dd>
+          <dt>つかう マス</dt><dd id="i-cells">4マス</dd>
+          <dt>あいている とびら</dt><dd id="i-doors">6こ</dd>
+          <dt>いる ゲート</dt><dd id="i-gates">6まい</dd>
+          <dt>なかの たかさ</dt><dd>12.8 mm</dd>
+          <dt>おもさ（PLA）</dt><dd id="i-weight">…</dd>
+        </dl>
+        <div class="make">
+          <label class="label" for="name">なまえ</label>
+          <input id="name" type="text" maxlength="40" value="わたしのへや">
+          <button id="export">データを つくる</button>
+          <label class="filebtn" for="open">つづきを ひらく（_design.json）<input id="open" type="file" accept=".json,application/json"></label>
+        </div>
+      </section>
+    </aside>
+
+    <section class="board" aria-label="うえから みた ず">
+      <div class="cap"><span>うえから みた ず（ベースプレート 4×4）</span><span class="num">1マス 42mm ／ 1タイル 10.5mm</span></div>
+      <canvas id="editor" aria-label="パーツの へんしゅう エリア"></canvas>
+      <p id="hint"></p>
+      <p id="warn" hidden></p>
+    </section>
+
+    <section class="v3" aria-label="3D プレビュー">
+      <div class="cap"><span>3Dで みる</span><span>ドラッグで まわす・ピンチで ズーム</span></div>
+      <div id="view3d"><div id="loading">じゅんびちゅう…</div></div>
+    </section>
+  </div>
+
+  <details class="spec">
+    <summary>おとなの かたへ：きかくと しくみ</summary>
+    <ul>
+      <li>Gridfinity 互換（ピッチ42mm、ビン外寸 42n−0.5mm、脚プロファイル 0.8／1.8／2.15mm）。底は穴なしのソリッド。</li>
+      <li>高さ21.5mm、壁厚6mm、床面6.5mm、フタ受け段 19.3mm（深さ2.2mm）。内部の有効高さは約12.8mm。</li>
+      <li>扉は外周に面した各マスの辺の中央に1つ（幅12×高さ10mm）。どう並べても隣のパーツと扉が向かい合います。</li>
+      <li>ゲート溝 2.6×16.4mm。ゲート板 15.4×21×2mm を上から差し込み、フタをしたまま抜き差しできます。</li>
+      <li>中身はタイル10.5mm格子（各マスの中心とマス境界に乗る格子）。仕切り厚1.2mm・高さ19.1mm（フタとの隙間0.2mm）。</li>
+      <li>みずばは深さ3mmのくぼみ。脚の継ぎ目（しま模様のタイル）は底が抜けるため掘れません。</li>
+      <li>書き出しはzip：ビンSTL、ゲートSTL（必要枚数）、フタ型紙SVG（原寸）、設計データJSON。</li>
+    </ul>
+  </details>
+</div>
+<div id="toast" hidden></div>
+<script>window.__WASM__="__WASM_B64__";</script>
+<script type="module">__BUNDLE__</script>

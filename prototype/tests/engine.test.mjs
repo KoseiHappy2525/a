@@ -1,0 +1,21 @@
+// 形状エンジンの簡易テスト：npm test
+import Module from 'manifold-3d';
+import fs from 'fs';
+import { buildBin, buildGates, toSTL } from '../src/engine.js';
+const W = await Module(); W.setup();
+let fail = 0;
+const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) fail++; };
+const A = buildBin(W, { cells: [[0, 0], [1, 0]] });
+const b = A.boundingBox();
+const ext = [0, 1, 2].map((k) => +(b.max[k] - b.min[k]).toFixed(2));
+ok(ext.join() === '83.5,41.5,21.5', `2x1 外寸 ${ext.join(' x ')}`);
+ok(Math.abs(A.volume() / 1000 - 33.11) < 0.5, `2x1 体積 ${(A.volume() / 1000).toFixed(2)}cm3（試作 A_home_box_2x1 は 33.11）`);
+const tiles = { '1,1': { type: 'pond' }, '3,1': { type: 'pond' }, '4,1': { type: 'rock' }, '5,1': { type: 'ramp', dir: 'E' }, '6,1': { type: 'step' } };
+const L = buildBin(W, { cells: [[0, 0], [1, 0], [0, 1]], tiles, walls: ['v:0,4', 'h:1,3'], closedDoors: ['0,1,N'], stepH: 5 });
+ok(L.status() === 'NoError' && L.genus() >= 0, 'L字＋中身パーツ入りで多様体');
+fs.mkdirSync('tests/out', { recursive: true });
+fs.writeFileSync('tests/out/A_2x1.stl', Buffer.from(toSTL(A)));
+fs.writeFileSync('tests/out/L_features.stl', Buffer.from(toSTL(L)));
+fs.writeFileSync('tests/out/gates_x6.stl', Buffer.from(toSTL(buildGates(W, 6))));
+console.log('STL を tests/out/ に書き出し');
+process.exit(fail ? 1 : 0);
