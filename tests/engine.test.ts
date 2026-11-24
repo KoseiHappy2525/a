@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { ManifoldToplevel, Manifold } from 'manifold-3d';
 import {
-  getManifold, buildBin, buildGates,
+  getManifold, buildBin, buildGates, buildStoppers, stopperPivots,
   parseBinarySTL, manifoldFromMesh, toSTL,
   isSeam,
 } from '../src/engine';
@@ -141,6 +141,61 @@ describe('まど（perimeter）パーツ', () => {
     const doorClosed = buildBin(W, { cells: [[0, 0]], closedDoors: ['0,0,N'] });
     // まどは貫通穴＋溝があるので、同じ辺を単に壁で閉じた形より体積が小さい
     expect(win.volume()).toBeLessThan(doorClosed.volume());
+  });
+});
+
+describe('ストッパー式フタ（STOPPER_LID_SPEC / reference）', () => {
+  const rect = (nx: number, ny: number): [number, number][] => {
+    const c: [number, number][] = [];
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) c.push([i, j]);
+    return c;
+  };
+  const refMan = (f: string): Manifold => {
+    const buf = readFileSync(fileURLToPath(new URL(`./ref/${f}`, import.meta.url)));
+    return manifoldFromMesh(W, parseBinarySTL(toArrayBuffer(buf)));
+  };
+
+  it('ストッパーの数が「四隅＋辺のセル境界」に合う（1×1=4, 2×1=6, 3×1=8, 3×3=12）', () => {
+    expect(stopperPivots(rect(1, 1)).length).toBe(4);
+    expect(stopperPivots(rect(2, 1)).length).toBe(6);
+    expect(stopperPivots(rect(3, 1)).length).toBe(8);
+    expect(stopperPivots(rect(3, 3)).length).toBe(12);
+  });
+
+  it('L字では へこみの角に置かず、凸の角＋辺の境界に置く', () => {
+    // L（3マス, 2×2 から (1,1) を抜いた形）。外形は 凸角5・凹角1。
+    const L = stopperPivots([[0, 0], [1, 0], [0, 1]]);
+    expect(L.length).toBe(7); // 凸角5 + 辺のセル境界2（凹角(1,1)は置かない）
+    // へこみの角(42,42)付近には軸が無い
+    expect(L.some((p) => Math.abs(p.x - 42) < 4 && Math.abs(p.y - 42) < 4)).toBe(false);
+  });
+
+  it.each([
+    ['ref_body_1x1_sheet1.0.stl', 1, 1, 1.0],
+    ['ref_body_1x1_sheet0.3.stl', 1, 1, 0.3],
+    ['ref_body_2x1_sheet1.0.stl', 2, 1, 1.0],
+    ['ref_body_3x3_sheet1.0.stl', 3, 3, 1.0],
+  ] as const)('本体が参考STL %s と一致（体積差0.5%以内・watertight1体）', (f, nx, ny, st) => {
+    const m = buildBin(W, { cells: rect(nx, ny), lid: { lock: 'stopper', sheetT: st } });
+    const r = refMan(f);
+    expect(m.status()).toBe('NoError');
+    expect(m.decompose().length).toBe(1);
+    expect(extents(m)).toEqual(extents(r));
+    expect(Math.abs(m.volume() - r.volume()) / r.volume()).toBeLessThan(0.005);
+  });
+
+  it('ストッパー部品が参考STL（x4・1mm）と一致する', () => {
+    const s = buildStoppers(W, 4, 1.0);
+    const r = refMan('ref_stopper_x4_1x1_sheet1.0.stl');
+    expect(s.status()).toBe('NoError');
+    expect(extents(s)).toEqual(extents(r));
+    expect(Math.abs(s.volume() - r.volume()) / r.volume()).toBeLessThan(0.005);
+  });
+
+  it('lock=none ならストッパーは付かない（フタ受けのまま）', () => {
+    const none = buildBin(W, { cells: [[0, 0]], lid: { lock: 'none', sheetT: 1.0 } });
+    const stop = buildBin(W, { cells: [[0, 0]], lid: { lock: 'stopper', sheetT: 1.0 } });
+    expect(none.volume()).toBeGreaterThan(stop.volume()); // 通り道＋穴のぶん stopper の方が軽い
   });
 });
 

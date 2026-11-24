@@ -1,8 +1,10 @@
 // エンジンの公開API
-export { P, TILES, isSeam, tileCenter, DIRS, outerDoors } from './params';
+export { P, ST, TILES, isSeam, tileCenter, DIRS, outerDoors } from './params';
 export type { Door } from './params';
-export type { Cell, Dir, TileType, TileFeature, BinParams } from './types';
+export type { Cell, Dir, TileType, TileFeature, BinParams, Lid } from './types';
 export { buildBin, buildGates, buildShade } from './geometry';
+export { stopperPivots, stopperCuts, buildStoppers } from './stopper';
+export type { Pivot } from './stopper';
 export { outlines } from './outlines';
 export type { Outlines } from './outlines';
 export { toSTL, parseBinarySTL, manifoldFromMesh } from './stl';

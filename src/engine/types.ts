@@ -28,4 +28,13 @@ export interface BinParams {
   windows?: string[];
   /** だんの高さ(mm)。既定 5 */
   stepH?: number;
+  /** フタの とめかた。'stopper'=回転ストッパー式／'none'=のせるだけ。省略時は 'none' */
+  lid?: Lid;
+}
+
+/** フタの仕様。lock='stopper' のとき本体にピン穴＋通り道が付く */
+export interface Lid {
+  lock: 'none' | 'stopper';
+  /** プラ板の厚さ(mm)。1.0 か 0.3 */
+  sheetT: number;
 }

@@ -10,6 +10,26 @@ export const P = {
   pondBottom: 3.5, gateW: 15.4, gateH: 21, gateT: 2,
 } as const;
 
+/**
+ * ストッパー式フタの寸法（STOPPER_LID_SPEC.md / reference/stopper_lid_reference.py が基準）。
+ * フタ受け(z=19.3)の上に、プラ板(厚さ sheetT)をのせ、回転アームで押さえる。
+ * 軸から armL 先・幅2*armR の腕が、通り道(浅いくぼみ)を90°回る。ピンØpinD を 穴ØholeD に差す。
+ */
+export const ST = {
+  pivotInset: 3.0,   // 軸の位置：外側の辺（セル境界）から内側へ
+  armL: 6.0,         // 軸→先端の中心
+  armR: 1.5,         // 腕の半径（幅3.0mm）
+  pocketCl: 0.3,     // 回る通り道のすき間
+  holeD: 2.7,        // ピン穴の直径
+  holeDepth: 3.5,    // ピン穴の深さ（PZ から下へ）
+  pinD: 2.4,         // ピンの直径（試作で2.6は入らず2.4に）
+  pinLen: 3.2,       // ピンの長さ
+  pinChamfer: 0.3,   // ピン先の面取り
+  armTopZ: 22.0,     // 取り付けたときの腕の上面（ふちより0.5mm上）
+  sweepStep: 5,      // 通り道を作る角度の刻み（度）
+  sheetDefault: 1.0, // プラ板の既定の厚さ
+} as const;
+
 /** タイル数（4マス分） */
 export const TILES = 15;
 

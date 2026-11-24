@@ -10,22 +10,59 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=IBM+Plex+Mono:wght@500&display=swap">
 </head>
 <body>
-  <div class="wrap">
+
+  <!-- スタート画面 -->
+  <section id="start" class="overlay">
+    <div class="hero">
+      <div class="hero-emoji">🪲🏠</div>
+      <h1>かんさつパーツ工房</h1>
+      <p>いきものの へやを つくって、3Dプリンターで だそう。</p>
+      <button id="btn-start" class="big">はじめる</button>
+    </div>
+  </section>
+
+  <!-- せつめい画面 -->
+  <section id="intro" class="overlay" hidden>
+    <div class="hero">
+      <h2>3つの ステップで つくるよ</h2>
+      <ol class="howto">
+        <li><span class="n">1</span><b>かたち</b><br>マスを えらんで へやの かたちを つくるよ。でいりぐちや まども つけられる。</li>
+        <li><span class="n">2</span><b>なかみ</b><br>かべ・いわ・みずば・トンネル などを おいて、いきものの せかいを つくる。</li>
+        <li><span class="n">3</span><b>データ</b><br>いろや なまえを きめて「データを つくる」。3Dプリンターで だせるよ。</li>
+      </ol>
+      <button id="btn-go" class="big">つくってみる</button>
+    </div>
+  </section>
+
+  <!-- エディタ本体 -->
+  <div id="editor-wrap" class="wrap" hidden>
     <header>
       <h1>かんさつパーツ工房<small>GRID 42mm</small></h1>
-      <p>じぶんの よそうを ためす へやを つくって、3Dプリンターで だそう。</p>
+      <button id="btn-home" class="ghost">さいしょに もどる</button>
     </header>
+
+    <!-- 工程バー -->
+    <nav class="stepbar" aria-label="こうてい">
+      <button data-step="1" aria-pressed="true"><b>1</b>かたち</button>
+      <button data-step="2" aria-pressed="false"><b>2</b>なかみ</button>
+      <button data-step="3" aria-pressed="false"><b>3</b>データ</button>
+    </nav>
 
     <div class="main">
       <aside class="side">
-        <section class="panel" aria-labelledby="l-step">
-          <div class="label" id="l-step">つくりかた</div>
-          <div class="steps">
-            <button id="m-shape" data-mode="shape" aria-pressed="false"><b>1</b>かたち</button>
-            <button id="m-inside" data-mode="inside" aria-pressed="true"><b>2</b>なかみ</button>
-            <button id="m-doors" data-mode="doors" aria-pressed="false"><b>3</b>とびら</button>
+        <!-- ① かたち -->
+        <section class="panel step-panel" data-for="1">
+          <div class="label">① へやの かたち</div>
+          <div class="subtoggle" role="group" aria-label="なにを する？">
+            <button data-sub="shape" aria-pressed="true">マスを つくる</button>
+            <button data-sub="doors" aria-pressed="false">でいりぐち・まど</button>
           </div>
-          <!-- 道具ボタンは app.ts が registry から作る -->
+          <p class="desc">つかう マスを タップで えらぶよ。「でいりぐち・まど」では、そとに めんした へんを タップすると あける→ふさぐ→まど と かわるよ。</p>
+        </section>
+
+        <!-- ② なかみ -->
+        <section class="panel step-panel" data-for="2" hidden>
+          <div class="label">② へやの なかみ</div>
           <div class="tools" id="tools"></div>
           <div class="presets" id="presets">
             <button id="p-maze">めいろ</button>
@@ -38,8 +75,9 @@
           <label class="row" for="stepH"><span>だんの たかさ</span><input id="stepH" type="range" min="2" max="10" step="1" value="5"><span class="num" id="stepHv">5mm</span></label>
         </section>
 
-        <section class="panel" aria-labelledby="l-look">
-          <div class="label" id="l-look">みため</div>
+        <!-- ③ データ -->
+        <section class="panel step-panel" data-for="3" hidden>
+          <div class="label">③ みため</div>
           <div class="swatches" role="group" aria-label="フィラメントの いろ">
             <button id="c1" data-color="#e9893a" style="background:#e9893a" aria-label="オレンジ" aria-pressed="true"></button>
             <button id="c2" data-color="#3d9fc2" style="background:#3d9fc2" aria-label="みずいろ" aria-pressed="false"></button>
@@ -48,20 +86,32 @@
             <button id="c5" data-color="#e6e2d8" style="background:#e6e2d8" aria-label="しろ" aria-pressed="false"></button>
             <button id="c6" data-color="#3b3c3a" style="background:#3b3c3a" aria-label="くろ" aria-pressed="false"></button>
           </div>
+          <div class="label" style="margin-top:4px">フタの とめかた</div>
+          <div class="subtoggle" role="group" aria-label="フタの とめかた">
+            <button data-lidlock="stopper" aria-pressed="true">ストッパー</button>
+            <button data-lidlock="none" aria-pressed="false">のせるだけ</button>
+          </div>
+          <div id="sheet-row">
+            <div class="label" style="margin-top:4px">プラばんの あつさ</div>
+            <div class="subtoggle" role="group" aria-label="プラばんの あつさ">
+              <button data-sheet="1" aria-pressed="true">1mm</button>
+              <button data-sheet="0.3" aria-pressed="false">0.3mm</button>
+            </div>
+          </div>
           <div class="checks">
             <label for="showGates"><input id="showGates" type="checkbox" checked> ゲートを さしてみる</label>
             <label for="showLid"><input id="showLid" type="checkbox"> フタ（プラばん）を のせる</label>
             <label for="shade"><input id="shade" type="checkbox"> かげいた も つくる</label>
           </div>
         </section>
-
-        <section class="panel" aria-labelledby="l-info">
-          <div class="label" id="l-info">このパーツ</div>
+        <section class="panel step-panel" data-for="3" hidden>
+          <div class="label">③ このパーツ</div>
           <dl class="info">
             <dt>おおきさ (mm)</dt><dd id="i-size">83.5 × 83.5 × 21.5</dd>
             <dt>つかう マス</dt><dd id="i-cells">4マス</dd>
             <dt>あいている とびら</dt><dd id="i-doors">6こ</dd>
             <dt>いる ゲート</dt><dd id="i-gates">6まい</dd>
+            <dt>ストッパー</dt><dd id="i-stoppers">12こ</dd>
             <dt>なかの たかさ</dt><dd>12.8 mm</dd>
             <dt>おもさ（PLA）</dt><dd id="i-weight">…</dd>
           </dl>
@@ -87,6 +137,12 @@
       </section>
     </div>
 
+    <!-- もどる／つぎへ -->
+    <div class="navbtns">
+      <button id="btn-back">← せつめいに もどる</button>
+      <button id="btn-next">つぎへ →</button>
+    </div>
+
     <details class="spec">
       <summary>おとなの かたへ：きかくと しくみ</summary>
       <ul>
@@ -102,6 +158,7 @@
       </ul>
     </details>
   </div>
+
   <div id="toast" hidden></div>
   <script type="module" src="/src/main.ts"></script>
 </body>

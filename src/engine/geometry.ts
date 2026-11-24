@@ -8,6 +8,7 @@ import { P, isSeam, tileCenter, outerDoors } from './params';
 import type { BinParams } from './types';
 import { rrPoints } from './shapes';
 import { getPart } from './registry';
+import { stopperCuts } from './stopper';
 
 export function buildBin(W: ManifoldToplevel, p: BinParams): Manifold {
   const { Manifold, CrossSection } = W;
@@ -108,6 +109,11 @@ export function buildBin(W: ManifoldToplevel, p: BinParams): Manifold {
       CrossSection.square([36, 36], true).translate([P.pitch * i + 21, P.pitch * j + 21])));
     const safeM = safe.offset(0, 'Square').extrude(10);
     cuts.push(Manifold.union(tileCuts).intersect(safeM).intersect(interior.extrude(10)));
+  }
+
+  // ---- ストッパー式フタ：フタ受けのふちに「通り道（浅いくぼみ）」と「ピン穴」を削る ----
+  if (p.lid?.lock === 'stopper') {
+    cuts.push(...stopperCuts(W, cells, p.lid.sheetT));
   }
 
   body = body.subtract(Manifold.union(cuts));

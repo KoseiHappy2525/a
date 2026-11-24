@@ -4,17 +4,19 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { ManifoldToplevel, Manifold } from 'manifold-3d';
 import {
-  P, isSeam, tileCenter, outerDoors,
-  buildBin, buildGates, buildShade, toSTL, outlines,
+  P, ST, isSeam, tileCenter, outerDoors,
+  buildBin, buildGates, buildShade, buildStoppers, stopperPivots, toSTL, outlines,
   getManifold, getPart, tileParts, edgeParts,
 } from '../engine';
-import type { Door, Outlines, BinParams, Dir, TileFeature } from '../engine';
+import type { Door, Outlines, BinParams, Dir, TileFeature, Lid } from '../engine';
 import { zip, type ZipFile } from './zip';
 // wasm の URL（Vite が dev/build とも正しい URL に解決する）
 import manifoldWasmUrl from 'manifold-3d/manifold.wasm?url';
 
 type ToolName = string; // パーツの id か 'erase'（レジストリから動的に決まる）
-type ModeName = 'shape' | 'inside' | 'doors';
+type ModeName = 'shape' | 'inside' | 'doors' | 'data';
+type ScreenName = 'start' | 'intro' | 'editor';
+type StepNo = 1 | 2 | 3;
 type TileVal = TileFeature;
 
 interface State {
@@ -26,6 +28,8 @@ interface State {
   windows: Set<string>;
   stepH: number;
   color: string;
+  screen: ScreenName;
+  step: StepNo;
   mode: ModeName;
   tool: ToolName;
   rampDir: Dir;
@@ -33,6 +37,7 @@ interface State {
   showGates: boolean;
   showLid: boolean;
   shade: boolean;
+  lid: Lid;
 }
 
 /* ---------- 状態 ---------- */
@@ -47,13 +52,16 @@ const state: State = {
   windows: new Set(),
   stepH: 5,
   color: '#e9893a',
-  mode: 'inside',
+  screen: 'start',
+  step: 1,
+  mode: 'shape',
   tool: 'wall',
   rampDir: 'E',
   seed: 7,
   showGates: true,
   showLid: false,
   shade: false,
+  lid: { lock: 'stopper', sheetT: ST.sheetDefault },
 };
 
 // はじめの見本：へやわけ＋だん＋さか＋みずば＋いわ
@@ -178,7 +186,8 @@ function say(msg: string): void {
 
 const HINTS = {
   shape: 'マスをタップして、つかう マスを えらぼう。となりあった マスどうしは 1つの へやに なるよ。',
-  doors: 'とびらを タップすると、あける→ふさぐ→まど の じゅんに かわるよ。あけた とびらには ゲートを させるよ。',
+  doors: 'そとに めんした へんを タップすると、あける→ふさぐ→まど の じゅんに かわるよ。あけた とびらには ゲートを させるよ。',
+  data: 'いろと なまえを きめて「データを つくる」を おそう。3Dプリンター用の データが できるよ。',
 };
 const ERASE_HINT = 'なぞった ところの かべや ものを けすよ。';
 
@@ -431,6 +440,14 @@ const plate = new THREE.Group(); scene.add(plate);
 const binMat = new THREE.MeshStandardMaterial({ color: state.color, roughness: 0.55, metalness: 0, flatShading: true });
 const binMesh = new THREE.Mesh(new THREE.BufferGeometry(), binMat); scene.add(binMesh);
 const gateGroup = new THREE.Group(); scene.add(gateGroup);
+const stopperGroup = new THREE.Group(); scene.add(stopperGroup);
+// ストッパー1本の形（軸→先端の丸カプセルを厚さぶん押し出し。原点が軸、+x が先端）
+function armGeometry(th: number): THREE.ExtrudeGeometry {
+  const r = ST.armR, L = ST.armL, sh = new THREE.Shape();
+  sh.absarc(0, 0, r, Math.PI / 2, -Math.PI / 2, true);
+  sh.absarc(L, 0, r, -Math.PI / 2, Math.PI / 2, true);
+  return new THREE.ExtrudeGeometry(sh, { depth: th, bevelEnabled: false });
+}
 const lidMesh = new THREE.Mesh(new THREE.BufferGeometry(),
   new THREE.MeshStandardMaterial({ color: 0xdff3ff, transparent: true, opacity: 0.35, roughness: 0.1 }));
 scene.add(lidMesh);
@@ -469,9 +486,11 @@ function params(): BinParams {
   return {
     cells: cellList(), tiles, walls: [...state.walls].filter(edgeOK),
     closedDoors: [...state.doorsOff], windows: [...state.windows].filter((id) => doorIds.has(id)),
-    stepH: state.stepH,
+    stepH: state.stepH, lid: state.lid,
   };
 }
+/** ストッパーの数（軸の数） */
+function stopperCount(): number { return state.lid.lock === 'stopper' ? stopperPivots(cellList()).length : 0; }
 function changed(): void { draw(); updateInfo(); clearTimeout(pending); pending = setTimeout(rebuild, 90); }
 function rebuild(): void {
   if (!W) return;
@@ -508,6 +527,18 @@ function rebuild(): void {
     lidMesh.geometry = new THREE.ExtrudeGeometry(shapes, { depth: 0.5, bevelEnabled: false });
     lidMesh.position.z = P.ledgeZ; old2.dispose();
   }
+  // ストッパー（しめた向き）：フタをのせたときだけ、プラ板の上に表示
+  stopperGroup.clear();
+  if (state.showLid && state.lid.lock === 'stopper') {
+    const PZ = P.ledgeZ + state.lid.sheetT, th = ST.armTopZ - PZ;
+    const sm = new THREE.MeshStandardMaterial({ color: css('--gate'), roughness: 0.5 });
+    const geom = armGeometry(th);
+    for (const pv of stopperPivots(cellList())) {
+      const arm = new THREE.Mesh(geom, sm);
+      arm.position.set(pv.x, pv.y, PZ); arm.rotation.z = pv.closed * Math.PI / 180;
+      stopperGroup.add(arm);
+    }
+  }
   // 遮光板：最初のマスの左半分に置く
   shadeMesh.visible = state.shade;
   if (state.shade) {
@@ -529,6 +560,8 @@ function updateInfo(): void {
   const od = openDoors().length;
   $('#i-doors').textContent = `${od}こ`;
   $('#i-gates').textContent = `${od}まい`;
+  const sc = stopperCount();
+  $('#i-stoppers').textContent = sc ? `${sc}こ` : 'なし';
   $('#i-weight').textContent = lastMesh ? `やく ${Math.round(lastMesh.volume() / 1000 * 1.24)} g` : '…';
   // いわで ふさがった とびら
   const blocked = openDoors().filter((d) => { const t = state.tiles.get(K(...doorTile(d))); return t && t.type === 'rock'; });
@@ -542,13 +575,40 @@ function updateInfo(): void {
   } else hint.textContent = HINTS[state.mode];
 }
 
+/* ---------- 画面と工程の切り替え ---------- */
+function showScreen(name: ScreenName): void {
+  state.screen = name;
+  $('#start').hidden = name !== 'start';
+  $('#intro').hidden = name !== 'intro';
+  $('#editor-wrap').hidden = name !== 'editor';
+  if (name === 'editor') { resize(); size3d(); draw(); }
+}
+function setStep(n: StepNo): void {
+  state.step = n;
+  if (n === 1) { if (state.mode !== 'shape' && state.mode !== 'doors') state.mode = 'shape'; }
+  else if (n === 2) state.mode = 'inside';
+  else state.mode = 'data';
+  syncUI(); resize(); size3d();
+}
+function setSub(m: ModeName): void { state.mode = m; syncUI(); draw(); }
+
 /* ---------- UI ---------- */
 function syncUI(): void {
-  document.querySelectorAll<HTMLElement>('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode)));
+  // 工程バー と、工程ごとのパネル
+  document.querySelectorAll<HTMLElement>('[data-step]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.step) === state.step)));
+  document.querySelectorAll<HTMLElement>('.step-panel').forEach((p) => { p.hidden = Number(p.dataset.for) !== state.step; });
+  // ①の サブ（マス／でいりぐち）、道具、いろ
+  document.querySelectorAll<HTMLElement>('[data-sub]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sub === state.mode)));
   document.querySelectorAll<HTMLElement>('[data-tool]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === state.tool)));
   document.querySelectorAll<HTMLElement>('[data-color]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.color === state.color)));
-  $('#tools').hidden = state.mode !== 'inside';
-  $('#presets').hidden = state.mode !== 'inside';
+  // フタの とめかた／プラ板の あつさ
+  document.querySelectorAll<HTMLElement>('[data-lidlock]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lidlock === state.lid.lock)));
+  document.querySelectorAll<HTMLElement>('[data-sheet]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.sheet) === state.lid.sheetT)));
+  $('#sheet-row').hidden = state.lid.lock !== 'stopper';
+  // ナビ
+  $('#btn-next').hidden = state.step === 3;
+  $('#btn-back').textContent = state.step === 1 ? '← せつめいに もどる' : '← もどる';
+  // 値の反映
   $<HTMLInputElement>('#stepH').value = String(state.stepH); $('#stepHv').textContent = state.stepH + 'mm';
   $<HTMLInputElement>('#showGates').checked = state.showGates; $<HTMLInputElement>('#showLid').checked = state.showLid; $<HTMLInputElement>('#shade').checked = state.shade;
   $<HTMLInputElement>('#name').value = state.name; $('#seed').textContent = String(state.seed);
@@ -560,7 +620,7 @@ function lidSVG(): string {
   const b = bbox(); const x0 = 42 * b.x0, y0 = 42 * b.y0, w = 42 * b.nx, h = 42 * b.ny;
   const d = (geo?.lid ?? []).map((poly) => 'M' + poly.map(([x, y]) => `${(x - x0).toFixed(2)},${(h - (y - y0)).toFixed(2)}`).join('L') + 'Z').join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w + 20}mm" height="${h + 30}mm" viewBox="-10 -20 ${w + 20} ${h + 30}">
-<text x="0" y="-10" font-size="5" font-family="sans-serif">${esc(state.name)} フタの型紙（原寸・100%で印刷）　線の内側を切る</text>
+<text x="0" y="-10" font-size="5" font-family="sans-serif">${esc(state.name)} フタの型紙（プラ板 ${state.lid.sheetT}mm・原寸100%で印刷）　線の内側を切る</text>
 <path d="${d}" fill="none" stroke="#000" stroke-width="0.3"/>
 <line x1="0" y1="-4" x2="50" y2="-4" stroke="#000" stroke-width="0.4"/><text x="52" y="-2.5" font-size="3.5" font-family="sans-serif">50mm（印刷後にこの線の長さを確認）</text>
 </svg>`;
@@ -569,18 +629,21 @@ const esc = (s: string): string => String(s).replace(/[&<>"]/g, (ch) => ({ '&': 
 
 interface Design {
   v: number; name: string; cells: string[]; tiles: [string, TileVal][]; walls: string[];
-  doorsOff: string[]; windows: string[]; stepH: number; color: string; seed: number;
+  doorsOff: string[]; windows: string[]; stepH: number; color: string; seed: number; lid: Lid;
 }
 function design(): Design {
   return {
-    v: 2, name: state.name, cells: [...state.cells], tiles: [...state.tiles], walls: [...state.walls],
+    v: 3, name: state.name, cells: [...state.cells], tiles: [...state.tiles], walls: [...state.walls],
     doorsOff: [...state.doorsOff], windows: [...state.windows], stepH: state.stepH, color: state.color, seed: state.seed,
+    lid: state.lid,
   };
 }
 function loadDesign(o: Partial<Design>): void {
   state.name = o.name || state.name; state.cells = new Set(o.cells); state.tiles = new Map(o.tiles);
   state.walls = new Set(o.walls); state.doorsOff = new Set(o.doorsOff); state.windows = new Set(o.windows); // v1 は windows なし＝空
   state.stepH = o.stepH || 5;
+  // lid が無い古いデータは「のせるだけ(none)」として扱う（仕様 §9）
+  state.lid = o.lid ? { lock: o.lid.lock, sheetT: o.lid.sheetT || ST.sheetDefault } : { lock: 'none', sheetT: ST.sheetDefault };
   state.color = o.color || state.color; state.seed = o.seed || 7; syncUI(); changed();
 }
 async function exportZip(): Promise<void> {
@@ -604,6 +667,13 @@ async function exportZip(): Promise<void> {
     }
   }
   if (state.shade) { const s = buildShade(W); files.push({ name: 'shade_strip.stl', data: new Uint8Array(toSTL(s)) }); s.delete(); }
+  // ストッパー部品（回転アーム＋ピン）を必要な数だけ印刷向きに並べて入れる
+  const nStop = stopperCount();
+  if (nStop) {
+    const st = buildStoppers(W, nStop, state.lid.sheetT);
+    files.push({ name: `${base}_stopper_x${nStop}.stl`, data: new Uint8Array(toSTL(st)) });
+    st.delete();
+  }
   const blob = zip(files);
   const filename = `${base}.zip`;
   const claude = (window as unknown as { claude?: { use?: (k: string) => Promise<{ save: (o: { filename: string; data: Blob }) => Promise<void> }> } }).claude;
@@ -637,12 +707,23 @@ function buildTools(): void {
 /* ---------- 起動 ---------- */
 export async function startApp(): Promise<void> {
   buildTools();
-  document.querySelectorAll<HTMLElement>('[data-mode]').forEach((b) => b.addEventListener('click', () => { state.mode = b.dataset.mode as ModeName; syncUI(); draw(); }));
+  // 画面の切り替え（スタート → せつめい → エディタ）
+  $('#btn-start').addEventListener('click', () => showScreen('intro'));
+  $('#btn-go').addEventListener('click', () => { showScreen('editor'); setStep(1); });
+  $('#btn-home').addEventListener('click', () => showScreen('start'));
+  // 工程バー と もどる／つぎへ
+  document.querySelectorAll<HTMLElement>('[data-step]').forEach((b) => b.addEventListener('click', () => setStep(Number(b.dataset.step) as StepNo)));
+  $('#btn-next').addEventListener('click', () => { if (state.step < 3) setStep((state.step + 1) as StepNo); });
+  $('#btn-back').addEventListener('click', () => { if (state.step > 1) setStep((state.step - 1) as StepNo); else showScreen('intro'); });
+  // ①の サブ（マス／でいりぐち・まど）
+  document.querySelectorAll<HTMLElement>('[data-sub]').forEach((b) => b.addEventListener('click', () => setSub(b.dataset.sub as ModeName)));
   document.querySelectorAll<HTMLElement>('[data-tool]').forEach((b) => b.addEventListener('click', () => { state.tool = b.dataset.tool as ToolName; syncUI(); draw(); }));
   document.querySelectorAll<HTMLElement>('[data-color]').forEach((b) => b.addEventListener('click', () => { state.color = b.dataset.color!; syncUI(); changed(); }));
   $<HTMLInputElement>('#stepH').addEventListener('input', (e) => { state.stepH = +(e.target as HTMLInputElement).value; syncUI(); changed(); });
   $<HTMLInputElement>('#showGates').addEventListener('change', (e) => { state.showGates = (e.target as HTMLInputElement).checked; changed(); });
   $<HTMLInputElement>('#showLid').addEventListener('change', (e) => { state.showLid = (e.target as HTMLInputElement).checked; changed(); });
+  document.querySelectorAll<HTMLElement>('[data-lidlock]').forEach((b) => b.addEventListener('click', () => { state.lid = { ...state.lid, lock: b.dataset.lidlock as Lid['lock'] }; syncUI(); changed(); }));
+  document.querySelectorAll<HTMLElement>('[data-sheet]').forEach((b) => b.addEventListener('click', () => { state.lid = { ...state.lid, sheetT: Number(b.dataset.sheet) }; syncUI(); changed(); }));
   $<HTMLInputElement>('#shade').addEventListener('change', (e) => { state.shade = (e.target as HTMLInputElement).checked; changed(); });
   $<HTMLInputElement>('#name').addEventListener('input', (e) => { state.name = (e.target as HTMLInputElement).value; });
   $('#p-maze').addEventListener('click', () => { makeMaze(state.seed); changed(); say(`めいろ ${state.seed}ばん を つくったよ`); });
